@@ -1,0 +1,151 @@
+{% extends 'zenhr/base.html' %}
+
+{% block title %}Employee Portal | ZenHR Portal{% endblock %}
+{% block page_title %}Employee Self-Service (ESS){% endblock %}
+{% block page_subtitle %}Update your profile details and fetch certified compensation payslips{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <!-- Profile Editor -->
+    <div class="col-md-5">
+        <div class="card shadow-sm border-0">
+            <div class="card-header">Edit Profile Information</div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="update_profile" value="1">
+                    <div class="row mb-3">
+                        <div class="col">
+                            <label class="form-label text-secondary small fw-medium">First Name</label>
+                            <input type="text" name="first_name" value="{{ user.first_name }}" class="form-control bg-light border-light" required>
+                        </div>
+                        <div class="col">
+                            <label class="form-label text-secondary small fw-medium">Last Name</label>
+                            <input type="text" name="last_name" value="{{ user.last_name }}" class="form-control bg-light border-light" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-secondary small fw-medium">Contact Phone Number</label>
+                        <input type="text" name="phone_number" value="{{ profile.phone_number|default_if_none:'' }}" class="form-control bg-light border-light" placeholder="E.g., +1 555-0192">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-secondary small fw-medium">Emergency Contact Name / Phone</label>
+                        <input type="text" name="emergency_contact" value="{{ profile.emergency_contact|default_if_none:'' }}" class="form-control bg-light border-light" placeholder="E.g., Mary Doe - Spouce (+1 555-0193)">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-secondary small fw-medium">Residential Postal Address</label>
+                        <textarea name="address" class="form-control bg-light border-light" rows="3" placeholder="Street name, City, Zipcode...">{{ profile.address|default_if_none:'' }}</textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100 rounded-pill py-2.5 fw-semibold mt-2">Update Credentials</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payslips ledger & viewer -->
+    <div class="col-md-7">
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header">My Released Payslips</div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Month / Cycle</th>
+                                <th>Gross Salary</th>
+                                <th>Deductions</th>
+                                <th>Net Salary</th>
+                                <th>Controls</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for payslip in my_payslips %}
+                            <tr>
+                                <td class="fw-bold">{{ payslip.payroll_period }}</td>
+                                <td>₹{{ payslip.gross_salary }}</td>
+                                <td class="text-danger">-₹{{ payslip.total_deductions }}</td>
+                                <td class="fw-bold text-success">₹{{ payslip.net_salary }}</td>
+                                <td>
+                                    <button class="btn btn-outline-primary btn-xs rounded-pill" onclick='showPayslip({{ payslip.id|escapejs }}, "{{ payslip.payroll_period|escapejs }}", "{{ payslip.basic_salary|escapejs }}", "{{ payslip.housing_allowance|escapejs }}", "{{ payslip.transport_allowance|escapejs }}", "{{ payslip.tax_withheld|escapejs }}", "{{ payslip.social_security|escapejs }}", "{{ payslip.net_salary|escapejs }}")'>
+                                        <i class="bi bi-file-pdf"></i> View Payslip
+                                    </button>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center py-5 text-secondary">No released payslips mapped to your directory</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Payslip Detail View Modal simulated within pure bootstrap -->
+        <div class="card shadow-sm border-0 d-none" id="payslip-detail-card">
+            <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center py-3">
+                <span class="fw-bold fs-5" id="payslip-title">Payslip Details</span>
+                <button class="btn-close btn-close-white" onclick="document.getElementById('payslip-detail-card').classList.add('d-none')"></button>
+            </div>
+            <div class="card-body bg-light">
+                <div class="row mb-3 bg-white p-3 rounded-3 border">
+                    <div class="col">
+                        <h6 class="text-secondary small fw-bold text-uppercase mb-1">Employee ID</h6>
+                        <p class="fw-semibold text-dark mb-0 font-monospace">{{ profile.employee_id }}</p>
+                    </div>
+                    <div class="col">
+                        <h6 class="text-secondary small fw-bold text-uppercase mb-1">Full Name</h6>
+                        <p class="fw-semibold text-dark mb-0">{{ user.get_full_name|default:user.username }}</p>
+                    </div>
+                </div>
+                
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="card h-100 p-3 border">
+                            <h6 class="text-secondary small fw-bold text-uppercase border-bottom pb-2 mb-2">Earnings & Allowances</h6>
+                            <div class="d-flex justify-content-between mb-2"><span>Basic Salary:</span><span class="fw-semibold" id="p-basic">₹0.00</span></div>
+                            <div class="d-flex justify-content-between mb-2"><span>Housing Allowance:</span><span class="fw-semibold" id="p-house">₹0.00</span></div>
+                            <div class="d-flex justify-content-between mb-2"><span>Transport Allowance:</span><span class="fw-semibold" id="p-trans">₹0.00</span></div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card h-100 p-3 border">
+                            <h6 class="text-secondary small fw-bold text-uppercase border-bottom pb-2 mb-2 text-danger">Deductions</h6>
+                            <div class="d-flex justify-content-between mb-2"><span>Tax Withheld:</span><span class="fw-semibold text-danger" id="p-tax">₹0.00</span></div>
+                            <div class="d-flex justify-content-between mb-2"><span>Social Security:</span><span class="fw-semibold text-danger" id="p-soc">₹0.00</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-primary text-white p-3 rounded-3 mt-3 d-flex justify-content-between align-items-center">
+                    <span class="fw-bold fs-6">Net Take-Home Salary</span>
+                    <span class="fw-bold fs-4" id="p-net">$0.00</span>
+                </div>
+                
+                <div class="text-center mt-3">
+                    <button class="btn btn-secondary btn-sm" onclick="window.print()"><i class="bi bi-printer"></i> Print / Save Certified Copy</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function showPayslip(id, title, basic, house, trans, tax, soc, net) {
+        document.getElementById('payslip-detail-card').classList.remove('d-none');
+        document.getElementById('payslip-title').innerText = `Payslip: ${title}`;
+        document.getElementById('p-basic').innerText = `₹${basic}`;
+        document.getElementById('p-house').innerText = `₹${house}`;
+        document.getElementById('p-trans').innerText = `₹${trans}`;
+        document.getElementById('p-tax').innerText = `-₹${tax}`;
+        document.getElementById('p-soc').innerText = `-₹${soc}`;
+        document.getElementById('p-net').innerText = `₹${net}`;
+        
+        // Scroll to the detail card smoothly
+        document.getElementById('payslip-detail-card').scrollIntoView({ behavior: 'smooth' });
+    }
+</script>
+{% endblock %}

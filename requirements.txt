@@ -1,0 +1,6 @@
+Django>=4.2.0
+django-crispy-forms>=2.0
+crispy-bootstrap5>=0.7
+google-genai>=2.4.0
+requests>=2.31.0
+python-dotenv>=1.0.0

@@ -1,0 +1,123 @@
+{% extends 'zenhr/base.html' %}
+
+{% block title %}Attendance | ZenHR Portal{% endblock %}
+{% block page_title %}Attendance Punches{% endblock %}
+{% block page_subtitle %}Digital punch clock and GPS validation tracker{% endblock %}
+
+{% block content %}
+<div class="row g-4 index-content">
+    <!-- Clock Consol -->
+    <div class="col-md-5">
+        <div class="card shadow-sm h-100">
+            <div class="card-header">Digital Punch Clock</div>
+            <div class="card-body text-center d-flex flex-column justify-content-center align-items-center py-5">
+                <div class="display-3 fw-bold mb-1 font-monospace" id="clock-display">12:52:02</div>
+                <div class="text-secondary mb-4 fs-6" id="date-display">Friday, June 12, 2026</div>
+
+                <div class="alert alert-secondary text-center max-w-100 py-2 d-none" id="gps-status">
+                    <i class="bi bi-geo-alt-fill text-primary"></i> <span id="gps-coords">Detecting GPS coords...</span>
+                </div>
+
+                <form method="post" id="attendance-form" class="mt-2 w-100 px-4">
+                    {% csrf_token %}
+                    <input type="hidden" name="latitude" id="latitude-field" value="">
+                    <input type="hidden" name="longitude" id="longitude-field" value="">
+                    
+                    {% if not today_record %}
+                        <input type="hidden" name="action" value="punch_in">
+                        <button type="submit" class="btn btn-primary btn-lg w-100 rounded-pill py-3 d-flex align-items-center justify-content-center gap-2">
+                            <i class="bi bi-box-arrow-in-right fs-4"></i> PUNCH CLOCK IN
+                        </button>
+                    {% elif not today_record.clock_out %}
+                        <input type="hidden" name="action" value="punch_out">
+                        <button type="submit" class="btn btn-success btn-lg w-100 rounded-pill py-3 d-flex align-items-center justify-content-center gap-2">
+                            <i class="bi bi-box-arrow-left fs-4"></i> PUNCH CLOCK OUT
+                        </button>
+                    {% else %}
+                        <div class="alert alert-success w-100 text-center py-3 mb-0 rounded-4">
+                            <i class="bi bi-check-circle-fill"></i> Complete attendance completed for today!
+                        </div>
+                    {% endif %}
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Punch History -->
+    <div class="col-md-7">
+        <div class="card shadow-sm h-100">
+            <div class="card-header">Presence Ledger</div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Date</th>
+                                <th>Clock In</th>
+                                <th>Clock Out</th>
+                                <th>GPS Location</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for record in my_records %}
+                            <tr>
+                                <td class="fw-semibold">{{ record.date }}</td>
+                                <td>{{ record.clock_in|date:"H:i:s"|default:"--" }}</td>
+                                <td>{{ record.clock_out|date:"H:i:s"|default:"--" }}</td>
+                                <td>
+                                    {% if record.latitude_in and record.longitude_in %}
+                                        <a href="https://www.google.com/maps?q={{ record.latitude_in }},{{ record.longitude_in }}" target="_blank" class="btn btn-link btn-xs p-0 text-decoration-none">
+                                            <i class="bi bi-geo-alt-fill text-danger"></i> Link
+                                        </a>
+                                    {% else %}
+                                        <span class="text-secondary text-opacity-50">Local Web</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if record.status == 'PRESENT' %}
+                                        <span class="badge bg-success-subtle text-success">Present</span>
+                                    {% elif record.status == 'LATE' %}
+                                        <span class="badge bg-warning-subtle text-warning">Late</span>
+                                    {% else %}
+                                        <span class="badge bg-danger-subtle text-danger">{{ record.status }}</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center py-5 text-secondary">No punching telemetry detected</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Live Clock
+    function updateClock() {
+        const now = new Date();
+        document.getElementById('clock-display').innerText = now.toLocaleTimeString();
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    // Geolocations validation
+    if (navigator.geolocation) {
+        document.getElementById('gps-status').classList.remove('d-none');
+        navigator.geolocation.getCurrentPosition(function(pos) {
+            document.getElementById('latitude-field').value = pos.coords.latitude;
+            document.getElementById('longitude-field').value = pos.coords.longitude;
+            document.getElementById('gps-coords').innerText = `GPS Validated: ${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`;
+        }, function(err) {
+            document.getElementById('gps-coords').innerText = "Location blocked or failed. Saving default portal coords.";
+        });
+    }
+</script>
+{% endblock %}

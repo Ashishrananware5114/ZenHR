@@ -1,0 +1,215 @@
+{% extends 'zenhr/base.html' %}
+
+{% block title %}Dashboard | ZenHR Portal{% endblock %}
+{% block page_title %}Corporate Dashboard{% endblock %}
+{% block page_subtitle %}Live operations and roster status{% endblock %}
+
+{% block content %}
+{% if is_manager %}
+<!-- Manager Dashboard -->
+<div class="row g-4 mb-4">
+    <div class="col-md-3">
+        <div class="card p-3 border-start border-4 border-primary">
+            <h6 class="text-secondary small fw-bold text-uppercase mb-2">Total Directory</h6>
+            <div class="d-flex justify-content-between align-items-center">
+                <span class="fs-2 fw-bold text-dark">{{ total_employees }}</span>
+                <i class="bi bi-people-fill text-primary fs-3"></i>
+            </div>
+            <p class="mb-0 text-muted small mt-2">Active: {{ active_employees }} employees</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card p-3 border-start border-4 border-success">
+            <h6 class="text-secondary small fw-bold text-uppercase mb-2">Today attendance</h6>
+            <div class="d-flex justify-content-between align-items-center">
+                <span class="fs-2 fw-bold text-dark">{{ today_presents }}</span>
+                <i class="bi bi-check-circle-fill text-success fs-3"></i>
+            </div>
+            <p class="mb-0 text-muted small mt-2">Lates: {{ today_lates }} records</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card p-3 border-start border-4 border-warning">
+            <h6 class="text-secondary small fw-bold text-uppercase mb-2">Leave Pending</h6>
+            <div class="d-flex justify-content-between align-items-center">
+                <span class="fs-2 fw-bold text-dark">{{ pending_leaves }}</span>
+                <i class="bi bi-file-earmark-medical-fill text-warning fs-3"></i>
+            </div>
+            <p class="mb-0 text-muted small mt-2">Requires managerial review</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card p-3 border-start border-4 border-info">
+            <h6 class="text-secondary small fw-bold text-uppercase mb-2">Payroll Active</h6>
+            <div class="d-flex justify-content-between align-items-center">
+                <span class="fs-2 fw-bold text-dark">Active</span>
+                <i class="bi bi-credit-card-2-front-fill text-info fs-3"></i>
+            </div>
+            <p class="mb-0 text-muted small mt-2">Calculation open</p>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-md-7">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span>Recent Leave Applications</span>
+                <a href="{% url 'leaves' %}" class="btn btn-sm btn-outline-primary">Manage Leaves</a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>id</th>
+                                <th>duration</th>
+                                <th>type</th>
+                                <th>reasons</th>
+                                <th>status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for leave in leave_requests %}
+                            <tr>
+                                <td>{{ leave.employee.employee_id }}</td>
+                                <td>{{ leave.start_date }} - {{ leave.end_date }}</td>
+                                <td>{{ leave.get_leave_type_display }}</td>
+                                <td class="text-truncate" style="max-width: 15vw;">{{ leave.reason }}</td>
+                                <td><span class="badge bg-warning text-dark">{{ leave.get_status_display }}</span></td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center py-4 text-secondary">No leave requests present</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-5">
+        <div class="card h-100">
+            <div class="card-header">Department Distribution</div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush">
+                    {% for dept in dept_breakdown %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center bg-transparent border-bottom border-light">
+                        <span class="fw-semibold">{{ dept.department }}</span>
+                        <span class="badge bg-primary rounded-pill">{{ dept.count }}</span>
+                    </li>
+                    {% empty %}
+                    <p class="text-secondary small mt-3">No departments populated</p>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% else %}
+<!-- ESS/Employee Dashboard -->
+<div class="row g-4 mb-4">
+    <div class="col-md-4">
+        <div class="card p-3 border-start border-4 border-primary">
+            <h6 class="text-secondary small fw-bold text-uppercase mb-2">Punch Status Today</h6>
+            <div class="d-flex justify-content-between align-items-center">
+                {% if today_attn %}
+                    <span class="fs-2 fw-bold text-success">PUNCHED</span>
+                    <i class="bi bi-clock-history text-success fs-3"></i>
+                {% else %}
+                    <span class="fs-2 fw-bold text-danger">ABSENT</span>
+                    <i class="bi bi-exclamation-circle text-danger fs-3"></i>
+                {% endif %}
+            </div>
+            <p class="mb-0 text-muted small mt-2">
+                {% if today_attn %}
+                    In: {{ today_attn.clock_in|date:"H:i" }} {% if today_attn.clock_out %}| Out: {{ today_attn.clock_out|date:"H:i" }}{% endif %}
+                {% else %}
+                    Punch Action Required
+                {% endif %}
+            </p>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card p-3 border-start border-4 border-success">
+            <h6 class="text-secondary small fw-bold text-uppercase mb-2">Presence Ratio</h6>
+            <div class="d-flex justify-content-between align-items-center">
+                <span class="fs-2 fw-bold text-dark">{{ presence_percentage }}%</span>
+                <i class="bi bi-pie-chart-fill text-success fs-3"></i>
+            </div>
+            <p class="mb-0 text-muted small mt-2">Presents: {{ stat_presents }} | Absents: {{ stat_absents }}</p>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card p-3 border-start border-4 border-info">
+            <h6 class="text-secondary small fw-bold text-uppercase mb-2">Latest Net Pay</h6>
+            <div class="d-flex justify-content-between align-items-center">
+                <span class="fs-2 fw-bold text-dark">₹{{ latest_payslip.net_salary|default:'0.00' }}</span>
+                <i class="bi bi-wallet2 text-info fs-3"></i>
+            </div>
+            <p class="mb-0 text-muted small mt-2">Cycle: {{ latest_payslip.payroll_period|default:"N/A" }}</p>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-md-8">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span>My Leave History</span>
+                <a href="{% url 'leaves' %}" class="btn btn-sm btn-outline-primary">Request Leave</a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>period</th>
+                                <th>type</th>
+                                <th>reason</th>
+                                <th>status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for leave in my_leaves %}
+                            <tr>
+                                <td>{{ leave.start_date }} - {{ leave.end_date }}</td>
+                                <td>{{ leave.get_leave_type_display }}</td>
+                                <td>{{ leave.reason }}</td>
+                                <td>
+                                    <span class="badge {% if leave.status == 'APPROVED' %}bg-success{% elif leave.status == 'REJECTED' %}bg-danger{% else %}bg-warning text-dark{% endif %}">
+                                        {{ leave.get_status_display }}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4" class="text-center py-4 text-secondary">No leave records registered</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-header">Digital Passcard</div>
+            <div class="card-body text-center py-4">
+                <div class="profile-badge mx-auto mb-3" style="width: 80px; height: 80px; font-size: 2rem;">
+                    {{ user.username|slice:":1"|upper }}
+                </div>
+                <h5 class="fw-bold mb-1">{{ user.get_full_name|default:user.username }}</h5>
+                <p class="text-secondary small mb-3">{{ user.profile.designation }} | {{ user.profile.department }}</p>
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle py-2 px-3">
+                    ID: {{ user.profile.employee_id }}
+                </span>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,129 @@
+{% extends 'zenhr/base.html' %}
+
+{% block title %}Leave Management | ZenHR Portal{% endblock %}
+{% block page_title %}Leaves & Absences{% endblock %}
+{% block page_subtitle %}Review or request annual, sick, or general leave allocations{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <!-- Leave Request Form -->
+    {% if not is_manager %}
+    <div class="col-md-4">
+        <div class="card h-100 shadow-sm border-0">
+            <div class="card-header border-bottom py-3">
+                <span class="fw-bold">Request Time-Off</span>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="request_leave" value="1">
+                    <div class="mb-3">
+                        <label class="form-label text-secondary small fw-medium">Leave Type</label>
+                        <select name="leave_type" class="form-select bg-light border-light" required>
+                            <option value="CL">Casual Leave</option>
+<option value="SL">Sick Leave</option>
+<option value="EL">Earned Leave</option>
+<option value="ML">Maternity Leave</option>
+<option value="PL">Paternity Leave</option>
+<option value="LWP">Leave Without Pay</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-secondary small fw-medium">Start Date</label>
+                        <input type="date" name="start_date" class="form-select bg-light border-light" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-secondary small fw-medium">End Date</label>
+                        <input type="date" name="end_date" class="form-select bg-light border-light" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-secondary small fw-medium">Reason & Explanation</label>
+                        <textarea class="form-control bg-light border-light" name="reason" rows="4" placeholder="Briefly justify your time-off request..." required></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100 rounded-pill py-2.5 fw-semibold mt-2">Submit Request</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Leave applications dynamic table -->
+    <div class="{% if is_manager %}col-md-12{% else %}col-md-8{% endif %}">
+        <div class="card shadow-sm border-0">
+            <div class="card-header">Time-Off Requests Ledger</div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                {% if is_manager %}<th>Employee</th>{% endif %}
+                                <th>Category</th>
+                                <th>Requested Period</th>
+                                <th>Total Days</th>
+                                <th>Reason</th>
+                                <th>Status</th>
+                                {% if is_manager %}<th>Operational Controls</th>{% endif %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for leave in leaves %}
+                            <tr>
+                                {% if is_manager %}
+                                <td>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="profile-badge" style="width:28px; height:28px; font-size:0.75rem;">
+                                            {{ leave.employee.user.username|slice:":1"|upper }}
+                                        </div>
+                                        <span class="small fw-semibold">{{ leave.employee.user.get_full_name|default:leave.employee.user.username }}</span>
+                                    </div>
+                                </td>
+                                {% endif %}
+                                <td><span class="badge bg-light text-dark">{{ leave.get_leave_type_display }}</span></td>
+                                <td class="small">{{ leave.start_date }} to {{ leave.end_date }}</td>
+                                <td class="fw-bold">{{ leave.duration_days }} days</td>
+                                <td class="text-truncate" style="max-width: 15vw;">{{ leave.reason }}</td>
+                                <td>
+                                    {% if leave.status == 'PENDING' %}
+                                        <span class="badge bg-warning-subtle text-warning-emphasis">Pending</span>
+                                    {% elif leave.status == 'APPROVED' %}
+                                        <span class="badge bg-success-subtle text-success-emphasis">Approved</span>
+                                    {% else %}
+                                        <span class="badge bg-danger-subtle text-danger-emphasis">Rejected</span>
+                                    {% endif %}
+                                </td>
+                                {% if is_manager %}
+                                <td>
+                                    {% if leave.status == 'PENDING' %}
+                                    <div class="d-flex gap-1">
+                                        <form method="post" class="d-inline">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="leave_id" value="{{ leave.id }}">
+                                            <button type="submit" name="approve_leave" value="1" class="btn btn-success btn-xs py-1 px-2.5 rounded-pill small">Approve</button>
+                                        </form>
+                                        <form method="post" class="d-inline">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="leave_id" value="{{ leave.id }}">
+                                            <button type="submit" name="reject_leave" value="1" class="btn btn-danger btn-xs py-1 px-2.5 rounded-pill small">Reject</button>
+                                        </form>
+                                    </div>
+                                    {% else %}
+                                        <span class="text-secondary small">Reviewed</span>
+                                    {% endif %}
+                                </td>
+                                {% endif %}
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="{% if is_manager %}7{% else %}5{% endif %}" class="text-center py-5 text-secondary">
+                                    No time-off registrations found
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,160 @@
+{% extends 'zenhr/base.html' %}
+
+{% block title %}AI Payroll Assistant | ZenHR Portal{% endblock %}
+{% block page_title %}Payroll AI Assistant{% endblock %}
+{% block page_subtitle %}Powered by Google Gemini to analyze roster sheets, tax regulations, and leave telemetry{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <!-- Chat Assistant Dashboard -->
+    <div class="col-md-8">
+        <div class="card shadow-sm border-0 d-flex flex-column" style="height: 65vh;">
+            <div class="card-header bg-dark text-white py-3 d-flex align-items-center gap-2">
+                <i class="bi bi-robot fs-4 text-primary"></i>
+                <div>
+                    <span class="fw-bold d-block">Consulting ZenHR Agent</span>
+                    <small class="text-secondary text-opacity-70 d-block">Sub-second calculations | Live context mapping</small>
+                </div>
+            </div>
+            
+            <!-- Chat Logs -->
+            <div class="card-body bg-light flex-grow-1 overflow-y-auto p-4" id="chat-thread" style="max-height: calc(65vh - 140px);">
+                <div class="d-flex gap-3 mb-4">
+                    <div class="profile-badge flex-shrink-0" style="width: 36px; height: 36px; background-color: #475569;">
+                        <i class="bi bi-robot text-white"></i>
+                    </div>
+                    <div class="bg-white p-3 rounded-4 shadow-sm" style="max-width: 80%;">
+                        <p class="mb-0 text-dark">Hello! I am your AI Payroll Assistant. I am directly integrated with the live corporate directory. You can query me on:</p>
+                        <ul class="mb-0 mt-2 small text-secondary">
+                            <li>Leave analytics and approved totals</li>
+                            <li>Taxes, social insurance allocations and allowances</li>
+                            <li>Salary calculations and payroll projections</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chat Footer Input -->
+            <div class="card-footer bg-white border-top p-3">
+                <form id="chat-query-form" class="input-group">
+                    {% csrf_token %}
+                    <input type="text" id="user-query-input" class="form-control py-2.5 rounded-start-pill border-end-0 border-secondary border-opacity-25 bg-light px-3" placeholder="Inquire on taxes, leave days, or calculate salaries..." required>
+                    <button type="submit" class="btn btn-primary px-4 rounded-end-pill d-flex align-items-center gap-1">
+                        <i class="bi bi-send-fill"></i> Send
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Suggested Probes -->
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header">Suggested Probes</div>
+            <div class="card-body">
+                <p class="text-secondary small mb-3">Tap on any query to probe the live context engine:</p>
+                <div class="d-flex flex-column gap-2">
+                    <button class="btn btn-outline-secondary btn-sm text-start py-2 px-3 rounded-3" onclick="probeQuery('Can you give me a summary of our company roster, including departments and positions?')">
+                        <i class="bi bi-people-fill text-primary"></i> Company Roster Summary
+                    </button>
+                    <button class="btn btn-outline-secondary btn-sm text-start py-2 px-3 rounded-3" onclick="probeQuery('What are the total leave counts registered for active employees, and who took the most leaves?')">
+                        <i class="bi bi-calendar2-check text-success"></i> Leave Telemetry Summary
+                    </button>
+                    <button class="btn btn-outline-secondary btn-sm text-start py-2 px-3 rounded-3" onclick="probeQuery('Project a tax withholding of 12% on a salary of $4500, and show the exact net sum after adding 150 housing.')">
+                        <i class="bi bi-calculator text-info"></i> Projects Compensation Formula
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const chatThread = document.getElementById('chat-thread');
+    const queryForm = document.getElementById('chat-query-form');
+    const queryInput = document.getElementById('user-query-input');
+
+    function appendMessage(sender, text) {
+        const isUser = sender === 'user';
+        const msgDiv = document.createElement('div');
+        msgDiv.className = `d-flex gap-3 mb-4 ${isUser ? 'flex-row-reverse' : ''}`;
+        
+        const badge = document.createElement('div');
+        badge.className = `profile-badge flex-shrink-0`;
+        badge.style.width = '36px';
+        badge.style.height = '36px';
+        if (isUser) {
+            badge.style.backgroundColor = '#3b82f6';
+            badge.innerText = 'ME';
+        } else {
+            badge.style.backgroundColor = '#475569';
+            badge.innerHTML = '<i class="bi bi-robot text-white"></i>';
+        }
+        
+        const contentDiv = document.createElement('div');
+        contentDiv.className = `${isUser ? 'bg-primary text-white' : 'bg-white text-dark'} p-3 rounded-4 shadow-sm`;
+        contentDiv.style.maxWidth = '80%';
+        contentDiv.innerText = text;
+        
+        msgDiv.appendChild(badge);
+        msgDiv.appendChild(contentDiv);
+        chatThread.appendChild(msgDiv);
+        
+        // Scroll to bottom
+        chatThread.scrollTop = chatThread.scrollHeight;
+    }
+
+    function probeQuery(text) {
+        queryInput.value = text;
+        queryForm.dispatchEvent(new Event('submit'));
+    }
+
+    queryForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const text = queryInput.value.trim();
+        if(!text) return;
+        
+        queryInput.value = '';
+        appendMessage('user', text);
+        
+        // Add typing indicator
+        const typingDiv = document.createElement('div');
+        typingDiv.className = 'd-flex gap-3 mb-4 align-items-center'
+        typingDiv.id = 'typing-indicator';
+        typingDiv.innerHTML = `
+            <div class="profile-badge flex-shrink-0" style="width:36px; height:36px; background-color:#475569;">
+                <i class="bi bi-robot text-white"></i>
+            </div>
+            <div class="text-secondary small">Consulting AI model...</div>
+        `;
+        chatThread.appendChild(typingDiv);
+        chatThread.scrollTop = chatThread.scrollHeight;
+
+        try {
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            const res = await fetch('/api/ai-query/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify({ query: text })
+            });
+            
+            const data = await res.json();
+            document.getElementById('typing-indicator')?.remove();
+            
+            if (data.answer) {
+                appendMessage('ai', data.answer);
+            } else {
+                appendMessage('ai', "Error connecting: " + (data.error || "Unknown server fault"));
+            }
+        } catch(err) {
+            document.getElementById('typing-indicator')?.remove();
+            appendMessage('ai', "Error making API call to backend module. Please verify networking.");
+        }
+    });
+</script>
+{% endblock %}
