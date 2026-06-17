@@ -16,7 +16,7 @@ from datetime import datetime, timedelta
 from .models import EmployeeProfile, Attendance, LeaveRequest, PayrollPeriod, Payslip
 
 # Gemini API setup (requires GEMINI_API_KEY)
-from google import genai
+import google.generativeai as genai
 import os
 
 def check_is_manager(user):
@@ -370,7 +370,7 @@ def ai_query_api_view(request):
     if not query:
         return JsonResponse({'error': 'Query empty'}, status=400)
     
-    api_key = os.environ.get('GEMINI_API_KEY', 'AQ.Ab8RN6I8XxfZfXkeWfZDBOnlI76N5DMiaA-wcoXUkgFK_T3tzA')
+    api_key = os.environ.get('GEMINI_API_KEY', '')
         
     # Build database context to ground the Gemini response
     profile_summary = []
@@ -394,14 +394,15 @@ def ai_query_api_view(request):
     """
     
     try:
-        client = genai.Client(api_key=api_key, http_options={"headers": {"User-Agent": "aistudio-build"}})
-        response = client.models.generate_content(
-            model='gemini-2.5-flash',
-            contents=query,
-            config={
-                'systemInstruction': system_instruction
-            }
+        genai.configure(api_key=api_key)
+
+        model = genai.GenerativeModel("gemini-1.5-flash")
+
+        response = model.generate_content(
+            f"{system_instruction}\n\nUser Question: {query}"
         )
+
         return JsonResponse({'answer': response.text})
+
     except Exception as ex:
         return JsonResponse({'error': f"Gemini error: {str(ex)}"}, status=500)
