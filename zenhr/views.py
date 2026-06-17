@@ -370,7 +370,7 @@ def ai_query_api_view(request):
     if not query:
         return JsonResponse({'error': 'Query empty'}, status=400)
     
-    api_key = os.environ.get('GEMINI_API_KEY', '')
+    api_key = os.environ.get('GEMINI_API_KEY', 'AQ.Ab8RN6I8XxfZfXkeWfZDBOnlI76N5DMiaA-wcoXUkgFK_T3tzA')
         
     # Build database context to ground the Gemini response
     profile_summary = []
